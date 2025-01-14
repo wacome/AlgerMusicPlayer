@@ -26,17 +26,21 @@
       </div>
       <!-- 底部音乐播放 -->
       <play-bar v-if="isPlay" :style="isMobile && store.state.musicFull ? 'bottom: 0;' : ''" />
+      <!-- 下载管理抽屉 -->
+      <download-drawer v-if="isElectron" />
     </div>
     <install-app-modal v-if="!isElectron"></install-app-modal>
     <update-modal v-if="isElectron" />
+    <artist-drawer ref="artistDrawerRef" :show="artistDrawerShow" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 
+import DownloadDrawer from '@/components/common/DownloadDrawer.vue';
 import InstallAppModal from '@/components/common/InstallAppModal.vue';
 import PlayBottom from '@/components/common/PlayBottom.vue';
 import UpdateModal from '@/components/common/UpdateModal.vue';
@@ -58,6 +62,8 @@ const PlayBar = defineAsyncComponent(() => import('./components/PlayBar.vue'));
 const SearchBar = defineAsyncComponent(() => import('./components/SearchBar.vue'));
 const TitleBar = defineAsyncComponent(() => import('./components/TitleBar.vue'));
 
+const ArtistDrawer = defineAsyncComponent(() => import('@/components/common/ArtistDrawer.vue'));
+
 const store = useStore();
 
 const isPlay = computed(() => store.state.isPlay as boolean);
@@ -68,6 +74,25 @@ onMounted(() => {
   store.dispatch('initializeSettings');
   store.dispatch('initializeTheme');
 });
+
+const artistDrawerRef = ref<InstanceType<typeof ArtistDrawer>>();
+const artistDrawerShow = computed({
+  get: () => store.state.showArtistDrawer,
+  set: (val) => store.commit('setShowArtistDrawer', val)
+});
+
+// 监听歌手ID变化
+watch(
+  () => store.state.currentArtistId,
+  (newId) => {
+    if (newId) {
+      artistDrawerShow.value = true;
+      nextTick(() => {
+        artistDrawerRef.value?.loadArtistInfo(newId);
+      });
+    }
+  }
+);
 </script>
 
 <style lang="scss" scoped>

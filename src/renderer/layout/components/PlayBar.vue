@@ -51,15 +51,23 @@
         </n-ellipsis>
       </div>
       <div class="music-content-name">
-        <n-ellipsis class="text-ellipsis" line-clamp="1">
+        <n-ellipsis
+          class="text-ellipsis"
+          line-clamp="1"
+          :tooltip="{
+            contentStyle: { maxWidth: '600px' },
+            zIndex: 99999
+          }"
+        >
           <span
             v-for="(artists, artistsindex) in playMusic.ar || playMusic.song.artists"
             :key="artistsindex"
-            >{{ artists.name
-            }}{{
-              artistsindex < (playMusic.ar || playMusic.song.artists).length - 1 ? ' / ' : ''
-            }}</span
+            class="cursor-pointer hover:text-green-500"
+            @click="handleArtistClick(artists.id)"
           >
+            {{ artists.name
+            }}{{ artistsindex < (playMusic.ar || playMusic.song.artists).length - 1 ? ' / ' : '' }}
+          </span>
         </n-ellipsis>
       </div>
     </div>
@@ -140,7 +148,7 @@
       </n-popover>
     </div>
     <!-- 播放音乐 -->
-    <music-full ref="MusicFullRef" v-model:music-full="musicFullVisible" :background="background" />
+    <music-full ref="MusicFullRef" v-model="musicFullVisible" :background="background" />
   </div>
 </template>
 
@@ -295,6 +303,9 @@ const musicFullVisible = ref(false);
 const setMusicFull = () => {
   musicFullVisible.value = !musicFullVisible.value;
   store.commit('setMusicFull', musicFullVisible.value);
+  if (musicFullVisible.value) {
+    store.commit('setShowArtistDrawer', false);
+  }
 };
 
 const palyListRef = useTemplateRef('palyListRef');
@@ -321,6 +332,11 @@ const toggleFavorite = async (e: Event) => {
 
 const openLyricWindow = () => {
   openLyric();
+};
+
+const handleArtistClick = (id: number) => {
+  musicFullVisible.value = false;
+  store.commit('setCurrentArtistId', id);
 };
 </script>
 

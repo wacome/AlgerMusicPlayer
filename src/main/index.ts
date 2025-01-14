@@ -3,6 +3,7 @@ import { app, globalShortcut, ipcMain, nativeImage } from 'electron';
 import { join } from 'path';
 
 import { loadLyricWindow } from './lyric';
+import { initializeCacheManager } from './modules/cache';
 import { initializeConfig } from './modules/config';
 import { initializeFileManager } from './modules/fileManager';
 import { initializeTray } from './modules/tray';
@@ -23,15 +24,17 @@ let mainWindow: Electron.BrowserWindow;
 
 // 初始化应用
 function initialize() {
-  // 初始化各个模块
+  // 初始化配置管理
   initializeConfig();
+  // 初始化缓存管理
+  initializeCacheManager();
+  // 初始化文件管理
   initializeFileManager();
+  // 初始化窗口管理
+  initializeWindowManager();
 
   // 创建主窗口
   mainWindow = createMainWindow(icon);
-
-  // 初始化窗口管理
-  initializeWindowManager();
 
   // 初始化托盘
   initializeTray(iconPath, mainWindow);
@@ -57,7 +60,7 @@ app.whenReady().then(() => {
   initialize();
 
   // macOS 激活应用时的处理
-  app.on('activate', function () {
+  app.on('activate', () => {
     if (mainWindow === null) initialize();
   });
 });

@@ -40,6 +40,7 @@ module.exports = {
     'vue/multi-word-component-names': 'off',
     'no-nested-ternary': 'off',
     'no-console': 'off',
+    'no-await-in-loop': 'off',
     'no-continue': 'off',
     'no-restricted-syntax': 'off',
     'no-return-assign': 'off',
@@ -102,6 +103,7 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'],
       rules: {
+        'max-classes-per-file': 'off',
         'no-await-in-loop': 'off',
         'dot-notation': 'off',
         'constructor-super': 'off',

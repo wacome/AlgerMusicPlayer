@@ -25,10 +25,14 @@
         }}</n-ellipsis>
         <div class="song-item-content-divider">-</div>
         <n-ellipsis class="song-item-content-name text-ellipsis" line-clamp="1">
-          <span v-for="(artists, artistsindex) in item.ar || item.song.artists" :key="artistsindex"
-            >{{ artists.name
-            }}{{ artistsindex < (item.ar || item.song.artists).length - 1 ? ' / ' : '' }}</span
-          >
+          <template v-for="(artist, index) in artists" :key="index">
+            <span
+              class="cursor-pointer hover:text-green-500"
+              @click.stop="handleArtistClick(artist.id)"
+              >{{ artist.name }}</span
+            >
+            <span v-if="index < artists.length - 1"> / </span>
+          </template>
         </n-ellipsis>
       </div>
       <template v-else>
@@ -37,12 +41,14 @@
         </div>
         <div class="song-item-content-name">
           <n-ellipsis class="text-ellipsis" line-clamp="1">
-            <span
-              v-for="(artists, artistsindex) in item.ar || item.song.artists"
-              :key="artistsindex"
-              >{{ artists.name
-              }}{{ artistsindex < (item.ar || item.song.artists).length - 1 ? ' / ' : '' }}</span
-            >
+            <template v-for="(artist, index) in artists" :key="index">
+              <span
+                class="cursor-pointer hover:text-green-500"
+                @click.stop="handleArtistClick(artist.id)"
+                >{{ artist.name }}</span
+              >
+              <span v-if="index < artists.length - 1"> / </span>
+            </template>
           </n-ellipsis>
         </div>
       </template>
@@ -158,43 +164,61 @@ const downloadMusic = async () => {
 
   try {
     isDownloading.value = true;
-    const loadingMessage = message.loading('正在下载中...', { duration: 0 });
 
-    const url = await getSongUrl(props.item.id, cloneDeep(props.item));
-    if (!url) {
-      loadingMessage.destroy();
-      message.error('获取音乐下载地址失败');
-      isDownloading.value = false;
-      return;
+    const data = (await getSongUrl(props.item.id, cloneDeep(props.item), true)) as any;
+    if (!data || !data.url) {
+      throw new Error('获取音乐下载地址失败');
     }
 
-    // 先移除可能存在的旧监听器
-    window.electron.ipcRenderer.removeAllListeners('music-download-complete');
+    // 构建文件名
+    const artistNames = (props.item.ar || props.item.song?.artists)?.map((a) => a.name).join(',');
+    const filename = `${props.item.name} - ${artistNames}`;
 
     // 发送下载请求
     window.electron.ipcRenderer.send('download-music', {
-      url,
-      filename: `${props.item.name} - ${(props.item.ar || props.item.song?.artists)?.map((a) => a.name).join(',')}`
-    });
-
-    // 添加新的一次性监听器
-    window.electron.ipcRenderer.once('music-download-complete', (_, result) => {
-      isDownloading.value = false;
-      loadingMessage.destroy();
-
-      if (result.success) {
-        message.success('下载成功');
-      } else if (result.canceled) {
-        // 用户取消了保存
-        message.info('已取消下载');
-      } else {
-        message.error(`下载失败: ${result.error}`);
+      url: data.url,
+      type: data.type,
+      filename,
+      songInfo: {
+        ...cloneDeep(props.item),
+        downloadTime: Date.now()
       }
     });
-  } catch (error) {
+
+    message.success('已加入下载队列');
+
+    // 监听下载完成事件
+    const handleDownloadComplete = (_, result) => {
+      if (result.filename === filename) {
+        isDownloading.value = false;
+        removeListeners();
+      }
+    };
+
+    // 监听下载错误事件
+    const handleDownloadError = (_, result) => {
+      if (result.filename === filename) {
+        isDownloading.value = false;
+        removeListeners();
+      }
+    };
+
+    // 移除监听器函数
+    const removeListeners = () => {
+      window.electron.ipcRenderer.removeListener('music-download-complete', handleDownloadComplete);
+      window.electron.ipcRenderer.removeListener('music-download-error', handleDownloadError);
+    };
+
+    // 添加事件监听器
+    window.electron.ipcRenderer.once('music-download-complete', handleDownloadComplete);
+    window.electron.ipcRenderer.once('music-download-error', handleDownloadError);
+
+    // 30秒后自动清理监听器（以防下载过程中出现未知错误）
+    setTimeout(removeListeners, 30000);
+  } catch (error: any) {
+    console.error('Download error:', error);
     isDownloading.value = false;
-    message.destroyAll();
-    message.error('下载失败');
+    message.error(error.message || '下载失败');
   }
 };
 
@@ -248,6 +272,15 @@ const toggleFavorite = async (e: Event) => {
 const toggleSelect = () => {
   emits('select', props.item.id, !props.selected);
 };
+
+const handleArtistClick = (id: number) => {
+  store.commit('setCurrentArtistId', id);
+};
+
+// 获取歌手列表（最多显示5个）
+const artists = computed(() => {
+  return (props.item.ar || props.item.song?.artists)?.slice(0, 4) || [];
+});
 </script>
 
 <style lang="scss" scoped>
